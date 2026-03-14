@@ -2,29 +2,36 @@
 
 url=$1
 
-# Check for required tools
-if [ ! -x "$(command -v assetfinder)" ]; then
-    echo "[-] assetfinder required to run script"
+# Function to validate if input is an IP address
+is_ip() {
+    if [[ $1 =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+        return 0
+    fi
+    return 1
+}
+
+# Function to validate if input is a domain
+is_domain() {
+    if [[ $1 =~ ^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$ ]]; then
+        return 0
+    fi
+    return 1
+}
+
+# Determine target type
+TARGET_TYPE="unknown"
+if is_ip "$url"; then
+    TARGET_TYPE="ip"
+elif is_domain "$url"; then
+    TARGET_TYPE="domain"
+else
+    echo "[-] Invalid input. Please provide a valid domain or IP address."
     exit 1
 fi
 
-if [ ! -x "$(command -v amass)" ]; then
-    echo "[-] amass required to run script"
-    exit 1
-fi
-
-if [ ! -x "$(command -v sublist3r)" ]; then
-    echo "[-] sublist3r required to run script"
-    exit 1
-fi
-
+# Check for common required tools
 if [ ! -x "$(command -v httprobe)" ]; then
     echo "[-] httprobe required to run script"
-    exit 1
-fi
-
-if [ ! -x "$(command -v waybackurls)" ]; then
-    echo "[-] waybackurls required to run script"
     exit 1
 fi
 
@@ -38,6 +45,32 @@ if [ ! -x "$(command -v nmap)" ]; then
     exit 1
 fi
 
+# Check domain-specific tools
+if [ "$TARGET_TYPE" = "domain" ]; then
+    if [ ! -x "$(command -v assetfinder)" ]; then
+        echo "[-] assetfinder required to run script for domain targets"
+        exit 1
+    fi
+
+    if [ ! -x "$(command -v amass)" ]; then
+        echo "[-] amass required to run script for domain targets"
+        exit 1
+    fi
+
+    if [ ! -x "$(command -v sublist3r)" ]; then
+        echo "[-] sublist3r required to run script for domain targets"
+        exit 1
+    fi
+fi
+
+# Check IP-specific tools
+if [ "$TARGET_TYPE" = "ip" ]; then
+    if [ ! -x "$(command -v gobuster)" ]; then
+        echo "[-] gobuster required to run script for IP targets"
+        exit 1
+    fi
+fi
+
 # Create directory structure
 if [ ! -d "$url" ]; then
     mkdir $url
@@ -45,32 +78,33 @@ fi
 if [ ! -d "$url/recon" ]; then
     mkdir $url/recon
 fi
-if [ ! -d "$url/recon/3rd-lvls" ]; then
-    mkdir $url/recon/3rd-lvls
+
+# Create domain-specific directories
+if [ "$TARGET_TYPE" = "domain" ]; then
+    if [ ! -d "$url/recon/3rd-lvls" ]; then
+        mkdir $url/recon/3rd-lvls
+    fi
+    if [ ! -d "$url/recon/potential_takeovers" ]; then
+        mkdir $url/recon/potential_takeovers
+    fi
 fi
+
+# Create IP-specific directories
+if [ "$TARGET_TYPE" = "ip" ]; then
+    if [ ! -d "$url/recon/directories" ]; then
+        mkdir $url/recon/directories
+    fi
+fi
+
+# Create common directories
 if [ ! -d "$url/recon/scans" ]; then
     mkdir $url/recon/scans
 fi
 if [ ! -d "$url/recon/httprobe" ]; then
     mkdir $url/recon/httprobe
 fi
-if [ ! -d "$url/recon/potential_takeovers" ]; then
-    mkdir $url/recon/potential_takeovers
-fi
-if [ ! -d "$url/recon/wayback" ]; then
-    mkdir $url/recon/wayback
-fi
-if [ ! -d "$url/recon/wayback/params" ]; then
-    mkdir $url/recon/wayback/params
-fi
-if [ ! -d "$url/recon/wayback/extensions" ]; then
-    mkdir $url/recon/wayback/extensions
-fi
 if [ ! -d "$url/recon/whatweb" ]; then
     mkdir $url/recon/whatweb
-fi
-if [ ! -d "$url/recon/eyewitness" ]; then
-    mkdir $url/recon/eyewitness
 fi
 
 # Initialize output files
@@ -80,53 +114,79 @@ fi
 if [ ! -f "$url/recon/final.txt" ]; then
     touch $url/recon/final.txt
 fi
-if [ ! -f "$url/recon/3rd-lvl-domains.txt" ]; then
-    touch $url/recon/3rd-lvl-domains.txt
+if [ "$TARGET_TYPE" = "domain" ]; then
+    if [ ! -f "$url/recon/3rd-lvl-domains.txt" ]; then
+        touch $url/recon/3rd-lvl-domains.txt
+    fi
 fi
 
-echo "[+] Harvesting subdomains with assetfinder..."
-assetfinder $url | grep ".$url" | sort -u | tee -a $url/recon/final1.txt
+echo "[+] Target type: $TARGET_TYPE"
 
-echo "[+] Double checking for subdomains with amass..."
-amass enum -d $url | tee -a $url/recon/final1.txt
+if [ "$TARGET_TYPE" = "domain" ]; then
+    echo "[+] Harvesting subdomains with assetfinder..."
+    assetfinder $url | grep ".$url" | sort -u | tee -a $url/recon/final1.txt
 
-sort -u $url/recon/final1.txt >> $url/recon/final.txt
-rm -f $url/recon/final1.txt
+    echo "[+] Double checking for subdomains with amass..."
+    amass enum -d $url | tee -a $url/recon/final1.txt
 
-echo "[+] Compiling 3rd level domains..."
-cat $url/recon/final.txt | grep -Po '(\w+\.\w+\.\w+)$' | sort -u >> $url/recon/3rd-lvl-domains.txt
+    sort -u $url/recon/final1.txt >> $url/recon/final.txt
+    rm -f $url/recon/final1.txt
 
-# Add 3rd level domains to final list
-for line in $(cat $url/recon/3rd-lvl-domains.txt); do
-    echo $line | sort -u | tee -a $url/recon/final.txt
-done
+    echo "[+] Compiling 3rd level domains..."
+    cat $url/recon/final.txt | grep -Po '(\w+\.\w+\.\w+)$' | sort -u >> $url/recon/3rd-lvl-domains.txt
 
-echo "[+] Harvesting subdomains with sublist3r..."
-for domain in $(cat $url/recon/3rd-lvl-domains.txt); do
-    sublist3r -d $domain -o $url/recon/3rd-lvls/$domain.txt 2>/dev/null || true
-done
+    # Add 3rd level domains to final list
+    for line in $(cat $url/recon/3rd-lvl-domains.txt); do
+        echo $line | sort -u | tee -a $url/recon/final.txt
+    done
 
-echo "[+] Probing for alive domains..."
-cat $url/recon/final.txt | sort -u | httprobe -s -p https:443 | sed 's/https\?:\/\///' | tr -d ':443' | sort -u >> $url/recon/httprobe/alive.txt
+    echo "[+] Harvesting subdomains with sublist3r..."
+    for domain in $(cat $url/recon/3rd-lvl-domains.txt); do
+        sublist3r -d $domain -o $url/recon/3rd-lvls/$domain.txt 2>/dev/null || true
+    done
+
+    echo "[+] Probing for alive domains..."
+    cat $url/recon/final.txt | sort -u | httprobe -s -p https:443 | sed 's/https\?:\/\///' | tr -d ':443' | sort -u >> $url/recon/httprobe/alive.txt
+else
+    # For IP addresses, add them directly to final and alive lists
+    echo "[+] Processing IP address..."
+    echo $url | sort -u >> $url/recon/final.txt
+    echo $url | sort -u >> $url/recon/httprobe/alive.txt
+fi
 
 echo "[+] Checking for possible subdomain takeover..."
-if [ ! -f "$url/recon/potential_takeovers/domains.txt" ]; then
-    touch $url/recon/potential_takeovers/domains.txt
-fi
-if [ ! -f "$url/recon/potential_takeovers/potential_takeovers.txt" ]; then
-    touch $url/recon/potential_takeovers/potential_takeovers.txt
-fi
+if [ "$TARGET_TYPE" = "domain" ]; then
+    if [ ! -f "$url/recon/potential_takeovers/domains.txt" ]; then
+        touch $url/recon/potential_takeovers/domains.txt
+    fi
+    if [ ! -f "$url/recon/potential_takeovers/potential_takeovers.txt" ]; then
+        touch $url/recon/potential_takeovers/potential_takeovers.txt
+    fi
 
-for line in $(cat $url/recon/final.txt); do
-    echo $line | sort -u >> $url/recon/potential_takeovers/domains.txt
-done
+    for line in $(cat $url/recon/final.txt); do
+        echo $line | sort -u >> $url/recon/potential_takeovers/domains.txt
+    done
 
-fp="$HOME/go/src/github.com/haccer/subjack/fingerprints.json"
-if [ -f "$fp" ]; then
-    subjack -w $url/recon/httprobe/alive.txt -t 100 -timeout 30 -ssl -c $fp -v 3 >> $url/recon/potential_takeovers/potential_takeovers.txt 2>/dev/null || true
+    fp="$HOME/go/src/github.com/haccer/subjack/fingerprints.json"
+    if [ -f "$fp" ]; then
+        subjack -w $url/recon/httprobe/alive.txt -t 100 -timeout 30 -ssl -c $fp -v 3 >> $url/recon/potential_takeovers/potential_takeovers.txt 2>/dev/null || true
+    else
+        echo "[-] subjack fingerprints.json not found, running without fingerprints..."
+        subjack -w $url/recon/httprobe/alive.txt -t 100 -timeout 30 -ssl -v 3 >> $url/recon/potential_takeovers/potential_takeovers.txt 2>/dev/null || true
+    fi
 else
-    echo "[-] subjack fingerprints.json not found, running without fingerprints..."
-    subjack -w $url/recon/httprobe/alive.txt -t 100 -timeout 30 -ssl -v 3 >> $url/recon/potential_takeovers/potential_takeovers.txt 2>/dev/null || true
+    echo "[*] Skipping subdomain takeover check for IP address"
+fi
+
+echo "[+] Scanning for directories..."
+if [ "$TARGET_TYPE" = "ip" ]; then
+    for target in $(cat $url/recon/httprobe/alive.txt); do
+        echo "[*] Running gobuster on $target $(date +'%Y-%m-%d %T')"
+        gobuster dir -u http://$target -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -o $url/recon/directories/$target.txt 2>/dev/null || true
+        sleep 1
+    done
+else
+    echo "[*] Skipping directory enumeration for domain target"
 fi
 
 echo "[+] Running whatweb on compiled domains..."
@@ -148,61 +208,21 @@ for domain in $(cat $url/recon/httprobe/alive.txt); do
     sleep 2
 done
 
-echo "[+] Scraping wayback data..."
-cat $url/recon/final.txt | waybackurls | tee -a $url/recon/wayback/wayback_output1.txt
-sort -u $url/recon/wayback/wayback_output1.txt >> $url/recon/wayback/wayback_output.txt
-rm -f $url/recon/wayback/wayback_output1.txt
-
-echo "[+] Pulling and compiling all possible params found in wayback data..."
-cat $url/recon/wayback/wayback_output.txt | grep '\?.*=' | cut -d '=' -f 1 | sort -u >> $url/recon/wayback/params/wayback_params.txt
-for line in $(cat $url/recon/wayback/params/wayback_params.txt); do
-    echo $line'='
-done > $url/recon/wayback/params/wayback_params_equals.txt
-
-echo "[+] Pulling and compiling js/php/aspx/jsp/json files from wayback output..."
-for line in $(cat $url/recon/wayback/wayback_output.txt); do
-    ext="${line##*.}"
-    if [[ "$ext" == "js" ]]; then
-        echo $line | sort -u | tee -a $url/recon/wayback/extensions/js.txt
-    fi
-    if [[ "$ext" == "html" ]]; then
-        echo $line | sort -u | tee -a $url/recon/wayback/extensions/html.txt
-    fi
-    if [[ "$ext" == "json" ]]; then
-        echo $line | sort -u | tee -a $url/recon/wayback/extensions/json.txt
-    fi
-    if [[ "$ext" == "php" ]]; then
-        echo $line | sort -u | tee -a $url/recon/wayback/extensions/php.txt
-    fi
-    if [[ "$ext" == "aspx" ]]; then
-        echo $line | sort -u | tee -a $url/recon/wayback/extensions/aspx.txt
-    fi
-done
-
-echo "[+] Sorting and deduplicating all extension files..."
-for file in $url/recon/wayback/extensions/*.txt; do
-    sort -u "$file" -o "$file"
-done
-
 echo "[+] Scanning for open ports..."
 nmap -iL $url/recon/httprobe/alive.txt -T4 -oA $url/recon/scans/scanned 2>/dev/null || true
-
-echo "[+] Checking for EyeWitness..."
-if command -v eyewitness >/dev/null 2>&1; then
-    echo "[+] Running EyeWitness against all compiled domains..."
-    eyewitness --web -f $url/recon/httprobe/alive.txt -d $url/recon/eyewitness --resolve --no-prompt 2>/dev/null || true
-else
-    echo "[-] EyeWitness not found. Skipping screenshots."
-fi
 
 echo "[+] Recon complete! Results saved to $url/recon/"
 echo ""
 echo "Key files:"
-echo "  - Subdomains: $url/recon/final.txt"
+echo "  - Targets: $url/recon/final.txt"
 echo "  - Alive hosts: $url/recon/httprobe/alive.txt"
-echo "  - Potential takeovers: $url/recon/potential_takeovers/potential_takeovers.txt"
 echo "  - Open ports: $url/recon/scans/scanned.nmap"
-echo "  - Wayback URLs: $url/recon/wayback/wayback_output.txt"
 echo "  - Web tech: $url/recon/whatweb/"
-echo "  - Screenshots: $url/recon/eyewitness/"
+
+if [ "$TARGET_TYPE" = "domain" ]; then
+    echo "  - Subdomains: $url/recon/final.txt"
+    echo "  - Potential takeovers: $url/recon/potential_takeovers/potential_takeovers.txt"
+else
+    echo "  - Directories: $url/recon/directories/"
+fi
 

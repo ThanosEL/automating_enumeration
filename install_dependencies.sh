@@ -27,11 +27,11 @@ go install github.com/tomnomnom/assetfinder@latest
 echo "[*] Installing httprobe..."
 go install github.com/tomnomnom/httprobe@latest
 
-echo "[*] Installing waybackurls..."
-go install github.com/tomnomnom/waybackurls@latest
-
 echo "[*] Installing subjack..."
 go install github.com/haccer/subjack@latest
+
+echo "[*] Installing gobuster..."
+go install github.com/OJ/gobuster/v3@latest
 
 echo "[+] Installing Python-based tools..."
 
@@ -44,14 +44,7 @@ pip3 install whatweb
 echo "[*] Installing amass..."
 go install -v github.com/owasp-amass/amass/v3/...@master
 
-echo "[*] Installing EyeWitness..."
-git clone https://github.com/FortyNorthSecurity/EyeWitness.git $HOME/EyeWitness || true
-cd $HOME/EyeWitness && pip3 install -r requirements.txt || true
-
 echo "[+] Adding Go bin to PATH..."
-if ! grep -q 'export PATH=\$PATH:\$HOME/go/bin' ~/.bashrc; then
-  echo 'export PATH=$PATH:$HOME/go/bin' >> ~/.bashrc
-fi
 
 echo "[+] Setting up subjack fingerprints..."
 mkdir -p $HOME/go/src/github.com/haccer/subjack
@@ -65,7 +58,7 @@ export PATH=$PATH:$HOME/go/bin
 echo ""
 
 missing_tools=0
-declare -a tools=("assetfinder" "amass" "sublist3r" "httprobe" "waybackurls" "whatweb" "nmap")
+declare -a tools=("assetfinder" "amass" "sublist3r" "httprobe" "whatweb" "nmap" "gobuster")
 
 for tool in "${tools[@]}"; do
   if command -v "$tool" >/dev/null 2>&1; then
