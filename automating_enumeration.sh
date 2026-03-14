@@ -1,6 +1,7 @@
 #!/bin/bash
 
 url=$1
+custom_wordlist=$2
 
 # Function to validate if input is an IP address
 is_ip() {
@@ -180,11 +181,39 @@ fi
 
 echo "[+] Scanning for directories..."
 if [ "$TARGET_TYPE" = "ip" ]; then
-    for target in $(cat $url/recon/httprobe/alive.txt); do
-        echo "[*] Running gobuster on $target $(date +'%Y-%m-%d %T')"
-        gobuster dir -u http://$target -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -o $url/recon/directories/$target.txt 2>/dev/null || true
-        sleep 1
-    done
+    # Determine wordlist to use
+    WORDLIST=""
+    
+    # If custom wordlist provided as argument
+    if [ -n "$custom_wordlist" ]; then
+        if [ -f "$custom_wordlist" ]; then
+            WORDLIST="$custom_wordlist"
+        else
+            echo "[-] Custom wordlist not found: $custom_wordlist"
+            echo "[*] Skipping directory enumeration"
+        fi
+    else
+        # Try default locations
+        if [ -f "/usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt" ]; then
+            WORDLIST="/usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt"
+        elif [ -f "/usr/share/wordlists/dirb/common.txt" ]; then
+            WORDLIST="/usr/share/wordlists/dirb/common.txt"
+        else
+            echo "[-] No default wordlist found"
+            echo "[*] Provide custom wordlist path:"
+            echo "[*] ./automating_enumeration.sh $url /path/to/wordlist.txt"
+            echo "[*] Skipping directory enumeration"
+        fi
+    fi
+    
+    # Run gobuster if wordlist found
+    if [ -n "$WORDLIST" ]; then
+        for target in $(cat $url/recon/httprobe/alive.txt); do
+            echo "[*] Running gobuster on $target $(date +'%Y-%m-%d %T')"
+            gobuster dir -u http://$target -w "$WORDLIST" -o $url/recon/directories/$target.txt 2>/dev/null || true
+            sleep 1
+        done
+    fi
 else
     echo "[*] Skipping directory enumeration for domain target"
 fi

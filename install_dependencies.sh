@@ -16,7 +16,9 @@ sudo apt-get install -y \
   nmap \
   curl \
   wget \
-  jq
+  jq \
+  wordlists \
+  dirbuster
 
 echo "[+] Installing Go-based tools..."
 export PATH=$PATH:$HOME/go/bin
@@ -35,11 +37,22 @@ go install github.com/OJ/gobuster/v3@latest
 
 echo "[+] Installing Python-based tools..."
 
+# For Kali Linux and Debian-based systems with Python restrictions
+# Try apt first, then pip with --break-system-packages if needed
+
 echo "[*] Installing sublist3r..."
-pip3 install sublist3r
+if apt list --installed 2>/dev/null | grep -q "^sublist3r"; then
+  echo "sublist3r already installed via apt"
+else
+  pip3 install --break-system-packages sublist3r 2>/dev/null || apt-get install -y sublist3r 2>/dev/null || true
+fi
 
 echo "[*] Installing whatweb..."
-pip3 install whatweb
+if apt list --installed 2>/dev/null | grep -q "^whatweb"; then
+  echo "whatweb already installed via apt"
+else
+  pip3 install --break-system-packages whatweb 2>/dev/null || apt-get install -y whatweb 2>/dev/null || true
+fi
 
 echo "[*] Installing amass..."
 go install -v github.com/owasp-amass/amass/v3/...@master

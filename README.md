@@ -57,7 +57,10 @@ chmod +x automating_enumeration.sh
 ```bash
 ./automating_enumeration.sh 192.168.1.10
 ```
-
+### IP Address with Custom Wordlist:
+```bash
+./automating_enumeration.sh 192.168.1.10 /path/to/wordlist.txt
+```
 ### What Happens:
 1. Detects whether input is a domain or IP address
 2. For domains: Runs subdomain enumeration, takeover detection, wayback analysis
@@ -199,6 +202,24 @@ Results are saved in `<ip>/recon/` with the following structure:
 
 ---
 
+## Wordlists for Directory Enumeration
+
+The script auto-detects wordlists on Kali Linux:
+- Primary: `/usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt` (installed via `dirbuster` package)
+- Fallback: `/usr/share/wordlists/dirb/common.txt` (installed via `wordlists` package)
+
+**To provide a custom wordlist:**
+```bash
+./automating_enumeration.sh 192.168.1.10 /path/to/custom-wordlist.txt
+```
+
+**Popular wordlists:**
+- SecLists: `https://github.com/danielmiessler/SecLists` (recommended)
+- Dirbuster default: `/usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt`
+- Common paths: `/usr/share/wordlists/dirb/common.txt`
+
+---
+
 ## Quick Start (TL;DR)
 
 ```bash
@@ -212,4 +233,7 @@ Results are saved in `<ip>/recon/` with the following structure:
 # Enumerate an IP:
 ./automating_enumeration.sh 192.168.1.10
 # Results in: 192.168.1.10/recon/
+
+# Enumerate an IP with custom wordlist:
+./automating_enumeration.sh 192.168.1.10 /path/to/wordlist.txt
 ```
