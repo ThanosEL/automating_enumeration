@@ -32,13 +32,17 @@ chmod +x install_dependencies.sh
 ./install_dependencies.sh
 ```
 
-This will install:
-- Go-based tools: assetfinder, amass, httprobe, subjack, gobuster
-- Python tools: sublist3r, whatweb
-- System tools: nmap, git, jq
-- Subjack fingerprints database
+### Step 2: Update PATH (Important!)
 
-### Step 2: Make the Main Script Executable
+After installation completes, update your shell's PATH to include Go tools:
+
+```bash
+source ~/.bashrc
+```
+
+This adds `$HOME/go/bin` to your PATH so the script can find all tools.
+
+### Step 3: Make the Main Script Executable
 
 ```bash
 chmod +x automating_enumeration.sh
@@ -46,7 +50,35 @@ chmod +x automating_enumeration.sh
 
 ---
 
+## What Gets Installed
+
+The installer (`install_dependencies.sh`) will install:
+
+**Go Tools:**
+- assetfinder - Subdomain enumeration
+- amass - Advanced subdomain discovery
+- httprobe - Host probing
+- subjack - Subdomain takeover detection
+- gobuster - Directory brute-forcing
+
+**Python Tools:**
+- sublist3r - Subdomain enumeration
+- whatweb - Web technology detection
+
+**System Packages:**
+- nmap - Port scanning
+- git, curl, wget, jq
+- wordlists & dirbuster - For gobuster wordlists
+
+---
+
 ## How to Run
+
+### First Time Setup:
+```bash
+./install_dependencies.sh
+source ~/.bashrc
+```
 
 ### Basic Usage - Domain:
 ```bash
@@ -187,10 +219,16 @@ Results are saved in `<ip>/recon/` with the following structure:
 
 | Issue | Solution |
 |-------|----------|
-| `command not found: assetfinder` | Run `./install_dependencies.sh` first |
+| `command not found: httprobe` | Run `source ~/.bashrc` after installation |
+| `command not found: assetfinder` | PATH not updated; run `source ~/.bashrc` |
 | Script exits immediately | Missing required tools; re-run installer |
 | nmap permission denied | Make sure nmap is installed; may need `sudo` |
 | No subdomain results | Domain may have no public discovery; check domain name |
+
+**If tools still not found after `source ~/.bashrc`:**
+```bash
+export PATH=$PATH:$HOME/go/bin
+```
 
 ---
 

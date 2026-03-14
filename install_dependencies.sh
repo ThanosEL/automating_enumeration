@@ -23,6 +23,11 @@ sudo apt-get install -y \
 echo "[+] Installing Go-based tools..."
 export PATH=$PATH:$HOME/go/bin
 
+# Add Go bin to PATH in bashrc first
+if ! grep -q 'export PATH=\$PATH:\$HOME/go/bin' ~/.bashrc; then
+  echo 'export PATH=$PATH:$HOME/go/bin' >> ~/.bashrc
+fi
+
 echo "[*] Installing assetfinder..."
 go install github.com/tomnomnom/assetfinder@latest
 
@@ -34,6 +39,9 @@ go install github.com/haccer/subjack@latest
 
 echo "[*] Installing gobuster..."
 go install github.com/OJ/gobuster/v3@latest
+
+# Reload PATH for current session
+export PATH=$PATH:$HOME/go/bin
 
 echo "[+] Installing Python-based tools..."
 
@@ -56,8 +64,6 @@ fi
 
 echo "[*] Installing amass..."
 go install -v github.com/owasp-amass/amass/v3/...@master
-
-echo "[+] Adding Go bin to PATH..."
 
 echo "[+] Setting up subjack fingerprints..."
 mkdir -p $HOME/go/src/github.com/haccer/subjack
@@ -88,6 +94,10 @@ if [ $missing_tools -eq 0 ]; then
   echo "[+] All dependencies installed successfully!"
   echo "[+] To use the main script, run: ./automating_enumeration.sh <domain>"
   echo "[+] Example: ./automating_enumeration.sh example.com"
+  echo "[+] Example IP: ./automating_enumeration.sh 192.168.1.10"
+  echo ""
+  echo "*** IMPORTANT: Run this to update your PATH ***"
+  echo "source ~/.bashrc"
   exit 0
 else
   echo "[-] $missing_tools tool(s) missing. Please check installation errors above."
