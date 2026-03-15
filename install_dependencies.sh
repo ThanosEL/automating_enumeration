@@ -14,11 +14,11 @@ sudo apt-get install -y \
   golang-go \
   git \
   nmap \
+  nikto \
   curl \
   wget \
   jq \
-  wordlists \
-  dirbuster
+  build-essential
 
 echo "[+] Installing Go-based tools..."
 export PATH=$PATH:$HOME/go/bin
@@ -37,8 +37,21 @@ go install github.com/tomnomnom/httprobe@latest
 echo "[*] Installing subjack..."
 go install github.com/haccer/subjack@latest
 
-echo "[*] Installing gobuster..."
-go install github.com/OJ/gobuster/v3@latest
+echo "[+] Installing Rust toolchain..."
+if ! command -v rustc >/dev/null 2>&1; then
+  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+  source $HOME/.cargo/env
+fi
+
+# Add Cargo bin to PATH in bashrc
+if ! grep -q 'export PATH=\$PATH:\$HOME/.cargo/bin' ~/.bashrc; then
+  echo 'export PATH=$PATH:$HOME/.cargo/bin' >> ~/.bashrc
+fi
+
+export PATH=$PATH:$HOME/.cargo/bin
+
+echo "[*] Installing feroxbuster..."
+cargo install feroxbuster
 
 # Reload PATH for current session
 export PATH=$PATH:$HOME/go/bin
@@ -53,13 +66,6 @@ if apt list --installed 2>/dev/null | grep -q "^sublist3r"; then
   echo "sublist3r already installed via apt"
 else
   pip3 install --break-system-packages sublist3r 2>/dev/null || apt-get install -y sublist3r 2>/dev/null || true
-fi
-
-echo "[*] Installing whatweb..."
-if apt list --installed 2>/dev/null | grep -q "^whatweb"; then
-  echo "whatweb already installed via apt"
-else
-  pip3 install --break-system-packages whatweb 2>/dev/null || apt-get install -y whatweb 2>/dev/null || true
 fi
 
 echo "[*] Installing amass..."
@@ -77,7 +83,7 @@ export PATH=$PATH:$HOME/go/bin
 echo ""
 
 missing_tools=0
-declare -a tools=("assetfinder" "amass" "sublist3r" "httprobe" "whatweb" "nmap" "gobuster")
+declare -a tools=("assetfinder" "amass" "sublist3r" "httprobe" "nmap" "feroxbuster" "nikto")
 
 for tool in "${tools[@]}"; do
   if command -v "$tool" >/dev/null 2>&1; then

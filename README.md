@@ -7,16 +7,16 @@ This is a **comprehensive automated reconnaissance (recon) tool** for security p
 ### Key Features:
 
 #### For Domains:
-- **Subdomain Enumeration** - Discovers all known subdomains using multiple sources (assetfinder, amass, sublist3r)
-- **Host Probing** - Identifies which subdomains are alive and responding
-- **Subdomain Takeover Detection** - Detects vulnerable subdomains that could be taken over
+- **Subdomain Enumeration** - Discovers all known subdomains (assetfinder, amass, sublist3r)
+- **Host Probing** - Identifies which subdomains are alive
+- **Subdomain Takeover Detection** - Finds vulnerable subdomains
 
 #### For IPs:
-- **Directory Enumeration** - Brute-forces web directories using gobuster
+- **Directory Enumeration** - Brute-forces web directories using feroxbuster with 2-level recursion
 
 #### For Both Domains & IPs:
-- **Port Scanning** - Maps open ports and services on live hosts (nmap)
-- **Technology Detection** - Identifies technologies/frameworks on target (whatweb)
+- **Port Scanning & Service Detection** - nmap with version detection (-sV), OS detection (-O), and default scripts (-sC)
+- **Web Vulnerability Scanning** - nikto scans targets with ports 80/443 open for web vulnerabilities
 
 ---
 
@@ -59,16 +59,15 @@ The installer (`install_dependencies.sh`) will install:
 - amass - Advanced subdomain discovery
 - httprobe - Host probing
 - subjack - Subdomain takeover detection
-- gobuster - Directory brute-forcing
 
-**Python Tools:**
-- sublist3r - Subdomain enumeration
-- whatweb - Web technology detection
+**Rust Tools:**
+- feroxbuster - Directory brute-forcing with recursive scanning
 
 **System Packages:**
 - nmap - Port scanning
-- git, curl, wget, jq
-- wordlists & dirbuster - For gobuster wordlists
+- nikto - Web vulnerability scanner
+- git, curl, wget, jq, build-essential
+- wordlists & dirbuster - For additional scanning options (optional)
 
 ---
 
@@ -89,30 +88,30 @@ source ~/.bashrc
 ```bash
 ./automating_enumeration.sh 192.168.1.10
 ```
-### IP Address with Custom Wordlist:
-```bash
-./automating_enumeration.sh 192.168.1.10 /path/to/wordlist.txt
-```
+
 ### What Happens:
 1. Detects whether input is a domain or IP address
-2. For domains: Runs subdomain enumeration, takeover detection, wayback analysis
-3. For IPs: Runs directory enumeration with gobuster, port scanning, technology detection
-4. Outputs progress messages for each stage
-5. Saves all results to organized subdirectories
+2. For domains: Runs subdomain enumeration and takeover detection
+3. For IPs: Runs directory enumeration with gobuster
+4. Performs comprehensive port scanning with service/OS detection using nmap
+5. Scans targets with ports 80/443 open for web vulnerabilities using nikto
+6. Outputs progress messages for each stage
+7. Saves all results to organized subdirectories
 
 ### Example Output (Domain):
 ```
 [+] Target type: domain
 [+] Harvesting subdomains with assetfinder...
-[+] Double checking for subdomains with amass...
+[+] Double checking with amass...
 [+] Compiling 3rd level domains...
 [+] Harvesting subdomains with sublist3r...
 [+] Probing for alive domains...
 [+] Checking for possible subdomain takeover...
 [+] Scanning for directories...
 [*] Skipping directory enumeration for domain target
-[+] Running whatweb on compiled domains...
 [+] Scanning for open ports...
+[+] Scanning for web vulnerabilities with nikto...
+[*] Running nikto on example.com...
 [+] Recon complete!
 ```
 
@@ -123,9 +122,10 @@ source ~/.bashrc
 [+] Checking for possible subdomain takeover...
 [*] Skipping subdomain takeover check for IP address
 [+] Scanning for directories...
-[*] Running gobuster on 192.168.1.10...
-[+] Running whatweb on compiled domains...
+[*] Running feroxbuster on 192.168.1.10 with 2-level recursion...
 [+] Scanning for open ports...
+[+] Scanning for web vulnerabilities with nikto...
+[*] Running nikto on 192.168.1.10...
 [+] Recon complete!
 ```
 
@@ -151,12 +151,7 @@ example.com/recon/
 │   ├── scanned.nmap                   # Raw nmap output
 │   ├── scanned.gnmap                  # Greppable nmap format
 │   └── scanned.xml                    # XML nmap output
-├── whatweb/
-│   ├── domain1.com/
-│   │   ├── output.txt                 # Technology info
-│   │   └── plugins.txt                # Plugin details
-│   └── ...
-```
+└── nikto/                             # Web vulnerability scan results
 
 ### For IP Address Targets:
 
@@ -168,18 +163,14 @@ Results are saved in `<ip>/recon/` with the following structure:
 ├── httprobe/
 │   └── alive.txt                      # Target IP (probing result)
 ├── directories/
-│   └── 192.168.1.10.txt               # Gobuster directory scan results
+│   └── 192.168.1.10.html               # Feroxbuster directory scan report
 ├── scans/
 │   ├── scanned.nmap                   # Raw nmap output
 │   ├── scanned.gnmap                  # Greppable nmap format
 │   └── scanned.xml                    # XML nmap output
-├── whatweb/
-│   └── 192.168.1.10/
-│       ├── output.txt                 # Technology info
-│       └── plugins.txt                # Plugin details
-```
+└── nikto/                             # Web vulnerability scan results (if ports 80/443 open)
 
-**Note**: Focused on core enumeration (subdomains for domains, directories for IPs) and port/tech detection.
+**Note**: Nikto scanning runs automatically on targets with ports 80 or 443 open. Results are saved as HTML reports in the nikto/ directory.
 
 ---
 
@@ -191,10 +182,10 @@ Results are saved in `<ip>/recon/` with the following structure:
 - **sublist3r** - Subdomain enumeration (multiple sources) - *Domains only*
 - **httprobe** - Host probing (port 80, 443) - *Domains & IPs*
 - **subjack** - Subdomain takeover detection - *Domains only*
-- **gobuster** - Directory brute-forcing - *IPs only*
-- **whatweb** - Web technology identification - *Domains & IPs*
-- **nmap** - Port scanning - *Domains & IPs*
-- **Go, Python3, Git, jq**
+- **feroxbuster** - Directory brute-forcing with recursion - *IPs only*
+- **nmap** - Port scanning with service/OS detection - *Domains & IPs*
+- **nikto** - Web vulnerability scanning - *Domains & IPs*
+- **Rust toolchain, Go, Python3, Git, jq**
 
 ### System Requirements:
 - **OS:** Linux, macOS, or Windows (WSL2/Git Bash)
@@ -240,29 +231,29 @@ export PATH=$PATH:$HOME/go/bin
 
 ---
 
-## Wordlists for Directory Enumeration
+## Directory Scanning with Feroxbuster
 
-The script auto-detects wordlists on Kali Linux:
-- Primary: `/usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt` (installed via `dirbuster` package)
-- Fallback: `/usr/share/wordlists/dirb/common.txt` (installed via `wordlists` package)
+**Feroxbuster Features:**
+- **Built-in Wordlists** - No need to provide wordlist paths
+- **2-Level Recursion** - Automatically scans subdirectories (uses `-r -d 2`)
+- **Multiple Output Formats** - HTML reports for easy review
+- **Fast Scanning** - Written in Rust for optimal performance
 
-**To provide a custom wordlist:**
-```bash
-./automating_enumeration.sh 192.168.1.10 /path/to/custom-wordlist.txt
-```
-
-**Popular wordlists:**
-- SecLists: `https://github.com/danielmiessler/SecLists` (recommended)
-- Dirbuster default: `/usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt`
-- Common paths: `/usr/share/wordlists/dirb/common.txt`
+The script automatically:
+- Detects web servers on IPs (via nmap port detection)
+- Initiates recursive directory brute-forcing
+- Generates detailed HTML reports per target
+- No manual wordlist configuration needed
 
 ---
 
 ## Quick Start (TL;DR)
 
 ```bash
-# First time only:
+# First time only (includes Rust toolchain installation):
 ./install_dependencies.sh
+source ~/.bashrc
+source ~/.cargo/env
 
 # Enumerate a domain:
 ./automating_enumeration.sh example.com
@@ -271,7 +262,4 @@ The script auto-detects wordlists on Kali Linux:
 # Enumerate an IP:
 ./automating_enumeration.sh 192.168.1.10
 # Results in: 192.168.1.10/recon/
-
-# Enumerate an IP with custom wordlist:
-./automating_enumeration.sh 192.168.1.10 /path/to/wordlist.txt
 ```

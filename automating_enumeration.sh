@@ -36,13 +36,13 @@ if [ ! -x "$(command -v httprobe)" ]; then
     exit 1
 fi
 
-if [ ! -x "$(command -v whatweb)" ]; then
-    echo "[-] whatweb required to run script"
+if [ ! -x "$(command -v nmap)" ]; then
+    echo "[-] nmap required to run script"
     exit 1
 fi
 
-if [ ! -x "$(command -v nmap)" ]; then
-    echo "[-] nmap required to run script"
+if [ ! -x "$(command -v nikto)" ]; then
+    echo "[-] nikto required to run script"
     exit 1
 fi
 
@@ -66,8 +66,8 @@ fi
 
 # Check IP-specific tools
 if [ "$TARGET_TYPE" = "ip" ]; then
-    if [ ! -x "$(command -v gobuster)" ]; then
-        echo "[-] gobuster required to run script for IP targets"
+    if [ ! -x "$(command -v feroxbuster)" ]; then
+        echo "[-] feroxbuster required to run script for IP targets"
         exit 1
     fi
 fi
@@ -104,8 +104,8 @@ fi
 if [ ! -d "$url/recon/httprobe" ]; then
     mkdir $url/recon/httprobe
 fi
-if [ ! -d "$url/recon/whatweb" ]; then
-    mkdir $url/recon/whatweb
+if [ ! -d "$url/recon/nikto" ]; then
+    mkdir $url/recon/nikto
 fi
 
 # Initialize output files
@@ -181,64 +181,38 @@ fi
 
 echo "[+] Scanning for directories..."
 if [ "$TARGET_TYPE" = "ip" ]; then
-    # Determine wordlist to use
-    WORDLIST=""
-    
-    # If custom wordlist provided as argument
-    if [ -n "$custom_wordlist" ]; then
-        if [ -f "$custom_wordlist" ]; then
-            WORDLIST="$custom_wordlist"
-        else
-            echo "[-] Custom wordlist not found: $custom_wordlist"
-            echo "[*] Skipping directory enumeration"
-        fi
-    else
-        # Try default locations
-        if [ -f "/usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt" ]; then
-            WORDLIST="/usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt"
-        elif [ -f "/usr/share/wordlists/dirb/common.txt" ]; then
-            WORDLIST="/usr/share/wordlists/dirb/common.txt"
-        else
-            echo "[-] No default wordlist found"
-            echo "[*] Provide custom wordlist path:"
-            echo "[*] ./automating_enumeration.sh $url /path/to/wordlist.txt"
-            echo "[*] Skipping directory enumeration"
-        fi
-    fi
-    
-    # Run gobuster if wordlist found
-    if [ -n "$WORDLIST" ]; then
-        for target in $(cat $url/recon/httprobe/alive.txt); do
-            echo "[*] Running gobuster on $target $(date +'%Y-%m-%d %T')"
-            gobuster dir -u http://$target -w "$WORDLIST" -o $url/recon/directories/$target.txt 2>/dev/null || true
-            sleep 1
-        done
-    fi
+    for target in $(cat $url/recon/httprobe/alive.txt); do
+        echo "[*] Running feroxbuster on $target with 2-level recursion $(date +'%Y-%m-%d %T')"
+        feroxbuster -u http://$target -r -d 2 -o $url/recon/directories/$target.html 2>/dev/null || true
+        sleep 1
+    done
 else
     echo "[*] Skipping directory enumeration for domain target"
 fi
 
-echo "[+] Running whatweb on compiled domains..."
-for domain in $(cat $url/recon/httprobe/alive.txt); do
-    if [ ! -d "$url/recon/whatweb/$domain" ]; then
-        mkdir -p $url/recon/whatweb/$domain
-    fi
-    if [ ! -f "$url/recon/whatweb/$domain/output.txt" ]; then
-        touch $url/recon/whatweb/$domain/output.txt
-    fi
-    if [ ! -f "$url/recon/whatweb/$domain/plugins.txt" ]; then
-        touch $url/recon/whatweb/$domain/plugins.txt
-    fi
-    echo "[*] Pulling plugins data on $domain $(date +'%Y-%m-%d %T')"
-    whatweb --info-plugins -t 50 $domain >> $url/recon/whatweb/$domain/plugins.txt 2>/dev/null || true
-    sleep 2
-    echo "[*] Running whatweb on $domain $(date +'%Y-%m-%d %T')"
-    whatweb -t 50 $domain >> $url/recon/whatweb/$domain/output.txt 2>/dev/null || true
-    sleep 2
-done
-
 echo "[+] Scanning for open ports..."
-nmap -iL $url/recon/httprobe/alive.txt -T4 -oA $url/recon/scans/scanned 2>/dev/null || true
+nmap -iL $url/recon/httprobe/alive.txt -sV -O -sC -oA $url/recon/scans/scanned 2>/dev/null || true
+
+echo "[+] Scanning for web vulnerabilities with nikto..."
+# Parse nmap output to find hosts with ports 80 or 443 open
+if [ -f "$url/recon/scans/scanned.nmap" ]; then
+    # Extract hosts that have ports 80 or 443 open
+    web_targets=$(grep -E "^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}" $url/recon/scans/scanned.nmap | \
+                  grep -E "(80/open|443/open)" | \
+                  grep -oE "^[^[:space:]]*" | sort -u)
+    
+    if [ -z "$web_targets" ]; then
+        echo "[*] No targets with ports 80/443 open found"
+    else
+        for target in $web_targets; do
+            echo "[*] Running nikto on $target..."
+            # Run nikto with output to both file and suppress SSL warnings
+            nikto -host $target -output $url/recon/nikto/$target.html 2>/dev/null || true
+        done
+    fi
+else
+    echo "[-] nmap output file not found, skipping nikto scan"
+fi
 
 echo "[+] Recon complete! Results saved to $url/recon/"
 echo ""
@@ -246,12 +220,12 @@ echo "Key files:"
 echo "  - Targets: $url/recon/final.txt"
 echo "  - Alive hosts: $url/recon/httprobe/alive.txt"
 echo "  - Open ports: $url/recon/scans/scanned.nmap"
-echo "  - Web tech: $url/recon/whatweb/"
+echo "  - Web vulnerabilities: $url/recon/nikto/"
 
 if [ "$TARGET_TYPE" = "domain" ]; then
     echo "  - Subdomains: $url/recon/final.txt"
     echo "  - Potential takeovers: $url/recon/potential_takeovers/potential_takeovers.txt"
 else
-    echo "  - Directories: $url/recon/directories/"
+    echo "  - Directories: $url/recon/directories/ (HTML reports)"
 fi
 
