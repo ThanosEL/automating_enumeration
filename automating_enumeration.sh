@@ -207,7 +207,19 @@ echo "[+] Scanning for directories..."
 if [ "$TARGET_TYPE" = "ip" ] && [ -n "$web_targets" ]; then
     for target in $web_targets; do
         echo "[*] Running feroxbuster on $target with 2-level recursion $(date +'%Y-%m-%d %T')"
-        feroxbuster -u http://$target -r --depth 2 --quiet -o $url/recon/directories/$target.html 2>/dev/null || true
+        # Run feroxbuster and save raw output
+        feroxbuster -u http://$target -r --depth 2 -s 200 301 302 307 308 -m GET --quiet -o $url/recon/directories/${target}_raw.txt 2>/dev/null || true
+        
+        # Format output: extract URLs and status codes, display vertically
+        if [ -f "$url/recon/directories/${target}_raw.txt" ]; then
+            echo "=== Directory Brute Force Results for $target ===" > $url/recon/directories/${target}_scan.txt
+            echo "" >> $url/recon/directories/${target}_scan.txt
+            cat $url/recon/directories/${target}_raw.txt | grep -oE '(200|301|302|307|308).*http[s]?://[^ ]+' | awk '{print $2, "["$1"]"}' | sort | uniq >> $url/recon/directories/${target}_scan.txt
+            rm -f $url/recon/directories/${target}_raw.txt
+        fi
+        
+        # Also generate HTML for visual review
+        feroxbuster -u http://$target -r --depth 2 -s 200 301 302 307 308 --quiet -o $url/recon/directories/${target}.html 2>/dev/null || true
         sleep 1
     done
 elif [ "$TARGET_TYPE" = "ip" ]; then
