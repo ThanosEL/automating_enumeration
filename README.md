@@ -12,11 +12,11 @@ This is a **comprehensive automated reconnaissance (recon) tool** for security p
 - **Subdomain Takeover Detection** - Finds vulnerable subdomains
 
 #### For IPs:
-- **Directory Enumeration** - Brute-forces web directories using feroxbuster with 2-level recursion
-
-#### For Both Domains & IPs:
 - **Port Scanning & Service Detection** - nmap with version detection (-sV), OS detection (-O), and default scripts (-sC)
-- **Web Vulnerability Scanning** - nikto scans targets with ports 80/443 open for web vulnerabilities
+
+#### For Both Domains & IPs (only if ports 80/443 open):
+- **Directory Enumeration** - Brute-forces web directories using feroxbuster with 2-level recursion
+- **Web Vulnerability Scanning** - nikto scans for web vulnerabilities
 
 ---
 
@@ -92,11 +92,10 @@ source ~/.bashrc
 ### What Happens:
 1. Detects whether input is a domain or IP address
 2. For domains: Runs subdomain enumeration and takeover detection
-3. For IPs: Runs directory enumeration with gobuster
-4. Performs comprehensive port scanning with service/OS detection using nmap
-5. Scans targets with ports 80/443 open for web vulnerabilities using nikto
-6. Outputs progress messages for each stage
-7. Saves all results to organized subdirectories
+3. Performs comprehensive port scanning with service/OS detection using nmap
+4. If ports 80/443 are open: Runs feroxbuster for directory enumeration and nikto for web vulnerabilities
+5. Outputs progress messages for each stage
+6. Saves all results to organized subdirectories
 
 ### Example Output (Domain):
 ```
@@ -182,9 +181,9 @@ Results are saved in `<ip>/recon/` with the following structure:
 - **sublist3r** - Subdomain enumeration (multiple sources) - *Domains only*
 - **httprobe** - Host probing (port 80, 443) - *Domains & IPs*
 - **subjack** - Subdomain takeover detection - *Domains only*
-- **feroxbuster** - Directory brute-forcing with recursion - *IPs only*
 - **nmap** - Port scanning with service/OS detection - *Domains & IPs*
-- **nikto** - Web vulnerability scanning - *Domains & IPs*
+- **feroxbuster** - Directory brute-forcing with recursion - *Domains & IPs (only if ports 80/443 open)*
+- **nikto** - Web vulnerability scanning - *Domains & IPs (only if ports 80/443 open)*
 - **Rust toolchain, Go, Python3, Git, jq**
 
 ### System Requirements:

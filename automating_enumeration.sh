@@ -179,27 +179,15 @@ else
     echo "[*] Skipping subdomain takeover check for IP address"
 fi
 
-echo "[+] Scanning for directories..."
-if [ "$TARGET_TYPE" = "ip" ]; then
-    for target in $(cat $url/recon/httprobe/alive.txt); do
-        echo "[*] Running feroxbuster on $target with 2-level recursion $(date +'%Y-%m-%d %T')"
-        feroxbuster -u http://$target -r --depth 2 -o $url/recon/directories/$target.html 2>/dev/null || true
-        sleep 1
-    done
-else
-    echo "[*] Skipping directory enumeration for domain target"
-fi
-
 echo "[+] Scanning for open ports..."
 nmap -iL $url/recon/httprobe/alive.txt -sV -O -sC -oA $url/recon/scans/scanned 2>/dev/null || true
 
-echo "[+] Scanning for web vulnerabilities with nikto..."
+echo "[+] Parsing nmap results for web servers (ports 80/443)..."
 # Parse nmap output to find hosts with ports 80 or 443 open
+web_targets=""
+current_ip=""
+
 if [ -f "$url/recon/scans/scanned.nmap" ]; then
-    # Extract targets with port 80 or 443 open from nmap output
-    web_targets=""
-    current_ip=""
-    
     while IFS= read -r line; do
         # Extract IP from "Nmap scan report for" lines
         if [[ $line =~ ^Nmap\ scan\ report\ for\ ([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}) ]]; then
@@ -213,18 +201,30 @@ if [ -f "$url/recon/scans/scanned.nmap" ]; then
             fi
         fi
     done < "$url/recon/scans/scanned.nmap"
-    
-    if [ -z "$web_targets" ]; then
-        echo "[*] No targets with ports 80/443 open found"
-    else
-        for target in $web_targets; do
-            echo "[*] Running nikto on $target..."
-            # Run nikto with correct syntax: nikto -h <target>
-            nikto -h $target -Format HTML -output $url/recon/nikto/$target.html 2>/dev/null || true
-        done
-    fi
+fi
+
+echo "[+] Scanning for directories..."
+if [ "$TARGET_TYPE" = "ip" ] && [ -n "$web_targets" ]; then
+    for target in $web_targets; do
+        echo "[*] Running feroxbuster on $target with 2-level recursion $(date +'%Y-%m-%d %T')"
+        feroxbuster -u http://$target -r --depth 2 --quiet -o $url/recon/directories/$target.html 2>/dev/null || true
+        sleep 1
+    done
+elif [ "$TARGET_TYPE" = "ip" ]; then
+    echo "[*] No web servers (ports 80/443) found, skipping directory enumeration"
 else
-    echo "[-] nmap output file not found, skipping nikto scan"
+    echo "[*] Skipping directory enumeration for domain target"
+fi
+
+echo "[+] Scanning for web vulnerabilities with nikto..."
+if [ -z "$web_targets" ]; then
+    echo "[*] No targets with ports 80/443 open found"
+else
+    for target in $web_targets; do
+        echo "[*] Running nikto on $target..."
+        # Run nikto with correct syntax: nikto -h <target>
+        nikto -h $target -Format HTML -output $url/recon/nikto/$target.html 2>/dev/null || true
+    done
 fi
 
 echo "[+] Recon complete! Results saved to $url/recon/"
