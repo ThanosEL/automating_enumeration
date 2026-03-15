@@ -18,6 +18,7 @@ sudo apt-get install -y \
   curl \
   wget \
   jq \
+  seclists \
   build-essential
 
 echo "[+] Installing Go-based tools..."

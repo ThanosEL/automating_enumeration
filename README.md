@@ -66,8 +66,8 @@ The installer (`install_dependencies.sh`) will install:
 **System Packages:**
 - nmap - Port scanning
 - nikto - Web vulnerability scanner
+- seclists - Wordlists for feroxbuster (web content discovery)
 - git, curl, wget, jq, build-essential
-- wordlists & dirbuster - For additional scanning options (optional)
 
 ---
 
@@ -234,14 +234,16 @@ export PATH=$PATH:$HOME/go/bin
 ## Directory Scanning with Feroxbuster
 
 **Feroxbuster Features:**
-- **Built-in Wordlists** - No need to provide wordlist paths
-- **2-Level Recursion** - Automatically scans subdirectories (uses `-r -d 2`)
-- **Multiple Output Formats** - HTML reports for easy review
+- **Built-in Wordlists** - Uses default SecLists wordlists automatically
+- **Redirect Following** - Follows HTTP redirects with `-r` flag
+- **2-Level Recursion** - Automatically scans subdirectories (uses `--depth 2`)
+- **HTML Reports** - Generates detailed reports for easy review
 - **Fast Scanning** - Written in Rust for optimal performance
 
 The script automatically:
 - Detects web servers on IPs (via nmap port detection)
-- Initiates recursive directory brute-forcing
+- Initiates recursive directory brute-forcing with built-in wordlists
+- Follows redirects during scanning
 - Generates detailed HTML reports per target
 - No manual wordlist configuration needed
 

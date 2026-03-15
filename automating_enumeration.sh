@@ -183,7 +183,7 @@ echo "[+] Scanning for directories..."
 if [ "$TARGET_TYPE" = "ip" ]; then
     for target in $(cat $url/recon/httprobe/alive.txt); do
         echo "[*] Running feroxbuster on $target with 2-level recursion $(date +'%Y-%m-%d %T')"
-        feroxbuster -u http://$target -r -d 2 -o $url/recon/directories/$target.html 2>/dev/null || true
+        feroxbuster -u http://$target -r --depth 2 -o $url/recon/directories/$target.html 2>/dev/null || true
         sleep 1
     done
 else
@@ -196,18 +196,31 @@ nmap -iL $url/recon/httprobe/alive.txt -sV -O -sC -oA $url/recon/scans/scanned 2
 echo "[+] Scanning for web vulnerabilities with nikto..."
 # Parse nmap output to find hosts with ports 80 or 443 open
 if [ -f "$url/recon/scans/scanned.nmap" ]; then
-    # Extract hosts that have ports 80 or 443 open
-    web_targets=$(grep -E "^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}" $url/recon/scans/scanned.nmap | \
-                  grep -E "(80/open|443/open)" | \
-                  grep -oE "^[^[:space:]]*" | sort -u)
+    # Extract targets with port 80 or 443 open from nmap output
+    web_targets=""
+    current_ip=""
+    
+    while IFS= read -r line; do
+        # Extract IP from "Nmap scan report for" lines
+        if [[ $line =~ ^Nmap\ scan\ report\ for\ ([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}) ]]; then
+            current_ip="${BASH_REMATCH[1]}"
+        fi
+        
+        # Check if this IP has port 80 or 443 open
+        if [[ $line =~ ^(80|443)/tcp.*open ]]; then
+            if [[ ! " $web_targets " =~ " $current_ip " ]]; then
+                web_targets="$web_targets $current_ip"
+            fi
+        fi
+    done < "$url/recon/scans/scanned.nmap"
     
     if [ -z "$web_targets" ]; then
         echo "[*] No targets with ports 80/443 open found"
     else
         for target in $web_targets; do
             echo "[*] Running nikto on $target..."
-            # Run nikto with output to both file and suppress SSL warnings
-            nikto -host $target -output $url/recon/nikto/$target.html 2>/dev/null || true
+            # Run nikto with correct syntax: nikto -h <target>
+            nikto -h $target -Format HTML -output $url/recon/nikto/$target.html 2>/dev/null || true
         done
     fi
 else
