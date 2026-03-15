@@ -207,8 +207,8 @@ echo "[+] Scanning for directories..."
 if [ "$TARGET_TYPE" = "ip" ] && [ -n "$web_targets" ]; then
     for target in $web_targets; do
         echo "[*] Running feroxbuster on $target with 2-level recursion $(date +'%Y-%m-%d %T')"
-        # Run feroxbuster and save output
-        feroxbuster -u http://$target -r --depth 2 --quiet -o $url/recon/directories/${target}_full.txt 2>/dev/null || true
+        # Run feroxbuster and save output (remove --quiet to see results)
+        feroxbuster -u http://$target -r --depth 2 -o $url/recon/directories/${target}_full.txt 2>/dev/null || true
         
         # Filter for 200 status codes and redirects, exclude images and static assets
         if [ -f "$url/recon/directories/${target}_full.txt" ]; then
