@@ -210,11 +210,11 @@ if [ "$TARGET_TYPE" = "ip" ] && [ -n "$web_targets" ]; then
         # Run feroxbuster and save output
         feroxbuster -u http://$target -r --depth 2 --quiet -o $url/recon/directories/${target}_full.txt 2>/dev/null || true
         
-        # Filter for 200 status codes and redirects (301, 302, 307, 308)
+        # Filter for 200 status codes and redirects, exclude images and static assets
         if [ -f "$url/recon/directories/${target}_full.txt" ]; then
             echo "=== Directory Brute Force Results for $target ===" > $url/recon/directories/${target}_scan.txt
             echo "" >> $url/recon/directories/${target}_scan.txt
-            grep -E '(200|301|302|307|308) GET' $url/recon/directories/${target}_full.txt >> $url/recon/directories/${target}_scan.txt 2>/dev/null || true
+            grep -E '(200|301|302|307|308) GET' $url/recon/directories/${target}_full.txt | grep -vE '\.(gif|png|jpg|jpeg|svg|ico|webp|css|js|woff|woff2|ttf|otf|eot|tif|tiff|bmp|apng|avif|pjpeg|pjp|mov|wav|mpg|mpeg|mp3|mp4|m4a|m4p|m4v|ogg|webm|ogv|oga|flac|aac|3gp|zip|xls|xml|gz|tgz)' >> $url/recon/directories/${target}_scan.txt 2>/dev/null || true
             rm -f $url/recon/directories/${target}_full.txt
         fi
         
