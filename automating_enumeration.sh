@@ -74,50 +74,50 @@ fi
 
 # Create directory structure
 if [ ! -d "$url" ]; then
-    mkdir $url
+    mkdir "$url"
 fi
 if [ ! -d "$url/recon" ]; then
-    mkdir $url/recon
+    mkdir "$url/recon"
 fi
 
 # Create domain-specific directories
 if [ "$TARGET_TYPE" = "domain" ]; then
     if [ ! -d "$url/recon/3rd-lvls" ]; then
-        mkdir $url/recon/3rd-lvls
+        mkdir "$url/recon/3rd-lvls"
     fi
     if [ ! -d "$url/recon/potential_takeovers" ]; then
-        mkdir $url/recon/potential_takeovers
+        mkdir "$url/recon/potential_takeovers"
     fi
 fi
 
 # Create IP-specific directories
 if [ "$TARGET_TYPE" = "ip" ]; then
     if [ ! -d "$url/recon/directories" ]; then
-        mkdir $url/recon/directories
+        mkdir "$url/recon/directories"
     fi
 fi
 
 # Create common directories
 if [ ! -d "$url/recon/scans" ]; then
-    mkdir $url/recon/scans
+    mkdir "$url/recon/scans"
 fi
 if [ ! -d "$url/recon/httprobe" ]; then
-    mkdir $url/recon/httprobe
+    mkdir "$url/recon/httprobe"
 fi
 if [ ! -d "$url/recon/nikto" ]; then
-    mkdir $url/recon/nikto
+    mkdir "$url/recon/nikto"
 fi
 
 # Initialize output files
 if [ ! -f "$url/recon/httprobe/alive.txt" ]; then
-    touch $url/recon/httprobe/alive.txt
+    touch "$url/recon/httprobe/alive.txt"
 fi
 if [ ! -f "$url/recon/final.txt" ]; then
-    touch $url/recon/final.txt
+    touch "$url/recon/final.txt"
 fi
 if [ "$TARGET_TYPE" = "domain" ]; then
     if [ ! -f "$url/recon/3rd-lvl-domains.txt" ]; then
-        touch $url/recon/3rd-lvl-domains.txt
+        touch "$url/recon/3rd-lvl-domains.txt"
     fi
 fi
 
@@ -125,62 +125,62 @@ echo "[+] Target type: $TARGET_TYPE"
 
 if [ "$TARGET_TYPE" = "domain" ]; then
     echo "[+] Harvesting subdomains with assetfinder..."
-    assetfinder $url | grep ".$url" | sort -u | tee -a $url/recon/final1.txt
+    assetfinder "$url" | grep "\.$url" | sort -u | tee -a "$url/recon/final1.txt"
 
     echo "[+] Double checking for subdomains with amass..."
-    amass enum -d $url | tee -a $url/recon/final1.txt
+    amass enum -d "$url" | tee -a "$url/recon/final1.txt"
 
-    sort -u $url/recon/final1.txt >> $url/recon/final.txt
-    rm -f $url/recon/final1.txt
+    sort -u "$url/recon/final1.txt" >> "$url/recon/final.txt"
+    rm -f "$url/recon/final1.txt"
 
     echo "[+] Compiling 3rd level domains..."
-    cat $url/recon/final.txt | grep -Po '(\w+\.\w+\.\w+)$' | sort -u >> $url/recon/3rd-lvl-domains.txt
+    cat "$url/recon/final.txt" | grep -Po '(\w+\.\w+\.\w+)$' | sort -u >> "$url/recon/3rd-lvl-domains.txt"
 
     # Add 3rd level domains to final list
-    for line in $(cat $url/recon/3rd-lvl-domains.txt); do
-        echo $line | sort -u | tee -a $url/recon/final.txt
-    done
+    while IFS= read -r line; do
+        echo "$line" | sort -u | tee -a "$url/recon/final.txt"
+    done < "$url/recon/3rd-lvl-domains.txt"
 
     echo "[+] Harvesting subdomains with sublist3r..."
-    for domain in $(cat $url/recon/3rd-lvl-domains.txt); do
-        sublist3r -d $domain -o $url/recon/3rd-lvls/$domain.txt 2>/dev/null || true
-    done
+    while IFS= read -r domain; do
+        sublist3r -d "$domain" -o "$url/recon/3rd-lvls/$domain.txt" 2>/dev/null || true
+    done < "$url/recon/3rd-lvl-domains.txt"
 
     echo "[+] Probing for alive domains..."
-    cat $url/recon/final.txt | sort -u | httprobe -s -p https:443 | sed 's/https\?:\/\///' | tr -d ':443' | sort -u >> $url/recon/httprobe/alive.txt
+    cat "$url/recon/final.txt" | sort -u | httprobe -s -p https:443 | sed 's/https\?:\/\///' | tr -d ':443' | sort -u >> "$url/recon/httprobe/alive.txt"
 else
     # For IP addresses, add them directly to final and alive lists
     echo "[+] Processing IP address..."
-    echo $url | sort -u >> $url/recon/final.txt
-    echo $url | sort -u >> $url/recon/httprobe/alive.txt
+    echo "$url" | sort -u >> "$url/recon/final.txt"
+    echo "$url" | sort -u >> "$url/recon/httprobe/alive.txt"
 fi
 
 echo "[+] Checking for possible subdomain takeover..."
 if [ "$TARGET_TYPE" = "domain" ]; then
     if [ ! -f "$url/recon/potential_takeovers/domains.txt" ]; then
-        touch $url/recon/potential_takeovers/domains.txt
+        touch "$url/recon/potential_takeovers/domains.txt"
     fi
     if [ ! -f "$url/recon/potential_takeovers/potential_takeovers.txt" ]; then
-        touch $url/recon/potential_takeovers/potential_takeovers.txt
+        touch "$url/recon/potential_takeovers/potential_takeovers.txt"
     fi
 
-    for line in $(cat $url/recon/final.txt); do
-        echo $line | sort -u >> $url/recon/potential_takeovers/domains.txt
-    done
+    while IFS= read -r line; do
+        echo "$line" | sort -u >> "$url/recon/potential_takeovers/domains.txt"
+    done < "$url/recon/final.txt"
 
     fp="$HOME/go/src/github.com/haccer/subjack/fingerprints.json"
     if [ -f "$fp" ]; then
-        subjack -w $url/recon/httprobe/alive.txt -t 100 -timeout 30 -ssl -c $fp -v 3 >> $url/recon/potential_takeovers/potential_takeovers.txt 2>/dev/null || true
+        subjack -w "$url/recon/httprobe/alive.txt" -t 100 -timeout 30 -ssl -c "$fp" -v 3 >> "$url/recon/potential_takeovers/potential_takeovers.txt" 2>/dev/null || true
     else
         echo "[-] subjack fingerprints.json not found, running without fingerprints..."
-        subjack -w $url/recon/httprobe/alive.txt -t 100 -timeout 30 -ssl -v 3 >> $url/recon/potential_takeovers/potential_takeovers.txt 2>/dev/null || true
+        subjack -w "$url/recon/httprobe/alive.txt" -t 100 -timeout 30 -ssl -v 3 >> "$url/recon/potential_takeovers/potential_takeovers.txt" 2>/dev/null || true
     fi
 else
     echo "[*] Skipping subdomain takeover check for IP address"
 fi
 
 echo "[+] Scanning for open ports..."
-nmap -iL $url/recon/httprobe/alive.txt -sV -O -sC -oA $url/recon/scans/scanned 2>/dev/null || true
+nmap -iL "$url/recon/httprobe/alive.txt" -sV -O -sC -oA "$url/recon/scans/scanned" 2>/dev/null || true
 
 echo "[+] Parsing nmap results for web servers (ports 80/443)..."
 # Parse nmap output to find hosts with ports 80 or 443 open
@@ -207,15 +207,19 @@ echo "[+] Scanning for directories..."
 if [ "$TARGET_TYPE" = "ip" ] && [ -n "$web_targets" ]; then
     for target in $web_targets; do
         echo "[*] Running feroxbuster on $target with 2-level recursion $(date +'%Y-%m-%d %T')"
-        # Run feroxbuster and save output (remove --quiet to see results)
-        feroxbuster -u http://$target -r --depth 2 -o $url/recon/directories/${target}_full.txt 2>/dev/null || true
+        # Run feroxbuster with custom wordlist if provided
+        if [ -n "${custom_wordlist:-}" ] && [ -f "$custom_wordlist" ]; then
+            feroxbuster -u http://"$target" -r --depth 2 -w "$custom_wordlist" -o "$url/recon/directories/${target}_full.txt" 2>/dev/null || true
+        else
+            feroxbuster -u http://"$target" -r --depth 2 -o "$url/recon/directories/${target}_full.txt" 2>/dev/null || true
+        fi
         
-        # Filter for 200 status codes and redirects, exclude images and static assets
+        # Filter for 200 status codes and redirects, exclude only binary files
         if [ -f "$url/recon/directories/${target}_full.txt" ]; then
-            echo "=== Directory Brute Force Results for $target ===" > $url/recon/directories/${target}_scan.txt
-            echo "" >> $url/recon/directories/${target}_scan.txt
-            grep -E '(200|301|302|307|308) GET' $url/recon/directories/${target}_full.txt | grep -vE '\.(gif|png|jpg|jpeg|svg|ico|webp|css|js|woff|woff2|ttf|otf|eot|tif|tiff|bmp|apng|avif|pjpeg|pjp|mov|wav|mpg|mpeg|mp3|mp4|m4a|m4p|m4v|ogg|webm|ogv|oga|flac|aac|3gp|zip|xls|xml|gz|tgz)' >> $url/recon/directories/${target}_scan.txt 2>/dev/null || true
-            rm -f $url/recon/directories/${target}_full.txt
+            echo "=== Directory Brute Force Results for $target ===" > "$url/recon/directories/${target}_scan.txt"
+            echo "" >> "$url/recon/directories/${target}_scan.txt"
+            grep -E '(200|301|302|307|308) GET' "$url/recon/directories/${target}_full.txt" | grep -vE '\.(gif|png|jpg|jpeg|svg|ico|webp|woff|woff2|ttf|otf|eot|zip|gz|tgz)' >> "$url/recon/directories/${target}_scan.txt" 2>/dev/null || true
+            rm -f "$url/recon/directories/${target}_full.txt"
         fi
         
         sleep 1
@@ -233,7 +237,7 @@ else
     for target in $web_targets; do
         echo "[*] Running nikto on $target..."
         # Run nikto with correct syntax: nikto -h <target>
-        nikto -h $target -Format HTML -output $url/recon/nikto/$target.html 2>/dev/null || true
+        nikto -h "$target" -Format HTML -output "$url/recon/nikto/$target.html" 2>/dev/null || true
     done
 fi
 
@@ -249,6 +253,6 @@ if [ "$TARGET_TYPE" = "domain" ]; then
     echo "  - Subdomains: $url/recon/final.txt"
     echo "  - Potential takeovers: $url/recon/potential_takeovers/potential_takeovers.txt"
 else
-    echo "  - Directories: $url/recon/directories/ (HTML reports)"
+    echo "  - Directories: $url/recon/directories/"
 fi
 
