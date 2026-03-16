@@ -218,7 +218,7 @@ if [ "$TARGET_TYPE" = "ip" ] && [ -n "$web_targets" ]; then
         if [ -f "$url/recon/directories/${target}_full.txt" ]; then
             echo "=== Directory Brute Force Results for $target ===" > "$url/recon/directories/${target}_scan.txt"
             echo "" >> "$url/recon/directories/${target}_scan.txt"
-            grep -E '(200|301|302|307|308) GET' "$url/recon/directories/${target}_full.txt" | grep -vE '\.(gif|png|jpg|jpeg|svg|ico|webp|woff|woff2|ttf|otf|eot|zip|gz|tgz)' >> "$url/recon/directories/${target}_scan.txt" 2>/dev/null || true
+            grep -E '(200|301|302|307|308).*GET' "$url/recon/directories/${target}_full.txt" | grep -vE '\.(gif|png|jpg|jpeg|svg|ico|webp|woff|woff2|ttf|otf|eot|zip|gz|tgz)' >> "$url/recon/directories/${target}_scan.txt" 2>/dev/null || true
             rm -f "$url/recon/directories/${target}_full.txt"
         fi
         
@@ -237,7 +237,9 @@ else
     for target in $web_targets; do
         echo "[*] Running nikto on $target..."
         # Run nikto with correct syntax: nikto -h <target>
-        nikto -h "$target" -Format HTML -output "$url/recon/nikto/$target.html" 2>/dev/null || true
+        # Sanitize target name for filename (replace dots with underscores)
+        safe_target=$(echo "$target" | sed 's/\./_/g')
+        nikto -h "$target" -Format HTML -output "$url/recon/nikto/${safe_target}.html" || true
     done
 fi
 
