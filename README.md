@@ -11,11 +11,8 @@ This is a **comprehensive automated reconnaissance (recon) tool** for security p
 - **Host Probing** - Identifies which subdomains are alive
 - **Subdomain Takeover Detection** - Finds vulnerable subdomains
 
-#### For IPs:
-- **Port Scanning & Service Detection** - nmap with version detection (-sV), OS detection (-O), and default scripts (-sC)
-
-#### For Both Domains & IPs (only if ports 80/443 open):
-- **Directory Enumeration** - Brute-forces web directories using feroxbuster with 2-level recursion
+#### For All Targets (Domains & IPs):
+- **Web Directory Enumeration** - Brute-forces web directories using feroxbuster with 2-level recursion
 - **Web Vulnerability Scanning** - nikto scans for web vulnerabilities
 
 ---
@@ -64,7 +61,6 @@ The installer (`install_dependencies.sh`) will install:
 - feroxbuster - Directory brute-forcing with recursive scanning
 
 **System Packages:**
-- nmap - Port scanning
 - nikto - Web vulnerability scanner
 - seclists - Wordlists for feroxbuster (web content discovery)
 - git, curl, wget, jq, build-essential
@@ -92,10 +88,11 @@ source ~/.bashrc
 ### What Happens:
 1. Detects whether input is a domain or IP address
 2. For domains: Runs subdomain enumeration and takeover detection
-3. Performs comprehensive port scanning with service/OS detection using nmap
-4. If ports 80/443 are open: Runs feroxbuster for directory enumeration and nikto for web vulnerabilities
-5. Outputs progress messages for each stage
-6. Saves all results to organized subdirectories
+3. Probes all targets for live web services (ports 80/443)
+4. Runs feroxbuster for directory enumeration on live targets
+5. Runs nikto for web vulnerability scanning
+6. Outputs progress messages for each stage
+7. Saves all results to organized subdirectories
 
 ### Example Output (Domain):
 ```
@@ -104,13 +101,12 @@ source ~/.bashrc
 [+] Double checking with amass...
 [+] Compiling 3rd level domains...
 [+] Harvesting subdomains with sublist3r...
-[+] Probing for alive domains...
-[+] Checking for possible subdomain takeover...
+[+] Probing alive targets for web enumeration...
 [+] Scanning for directories...
-[*] Skipping directory enumeration for domain target
-[+] Scanning for open ports...
+[*] Running feroxbuster on https://example.com with 2-level recursion...
+[+] Checking for possible subdomain takeover...
 [+] Scanning for web vulnerabilities with nikto...
-[*] Running nikto on example.com...
+[*] Running nikto on https://example.com...
 [+] Recon complete!
 ```
 
@@ -118,13 +114,12 @@ source ~/.bashrc
 ```
 [+] Target type: ip
 [+] Processing IP address...
-[+] Checking for possible subdomain takeover...
-[*] Skipping subdomain takeover check for IP address
+[+] Probing alive targets for web enumeration...
 [+] Scanning for directories...
-[*] Running feroxbuster on 192.168.1.10 with 2-level recursion...
-[+] Scanning for open ports...
+[+] Web targets found, enumerating directories...
+[*] Running feroxbuster on http://192.168.1.10 with 2-level recursion...
 [+] Scanning for web vulnerabilities with nikto...
-[*] Running nikto on 192.168.1.10...
+[*] Running nikto on http://192.168.1.10...
 [+] Recon complete!
 ```
 
@@ -146,10 +141,8 @@ example.com/recon/
 ├── potential_takeovers/
 │   ├── domains.txt                    # Domains checked
 │   └── potential_takeovers.txt        # Vulnerable takeover targets
-├── scans/
-│   ├── scanned.nmap                   # Raw nmap output
-│   ├── scanned.gnmap                  # Greppable nmap format
-│   └── scanned.xml                    # XML nmap output
+├── directories/                       # Web directory enumeration results
+│   └── enum_results.txt               # Feroxbuster directory scan results
 └── nikto/                             # Web vulnerability scan results
 
 ### For IP Address Targets:
@@ -160,16 +153,12 @@ Results are saved in `<ip>/recon/` with the following structure:
 192.168.1.10/recon/
 ├── final.txt                          # The target IP address
 ├── httprobe/
-│   └── alive.txt                      # Target IP (probing result)
+│   └── alive.txt                      # Target IP with live web service
 ├── directories/
-│   └── 192.168.1.10.html               # Feroxbuster directory scan report
-├── scans/
-│   ├── scanned.nmap                   # Raw nmap output
-│   ├── scanned.gnmap                  # Greppable nmap format
-│   └── scanned.xml                    # XML nmap output
-└── nikto/                             # Web vulnerability scan results (if ports 80/443 open)
+│   └── enum_results.txt               # Feroxbuster directory enumeration results
+└── nikto/                             # Web vulnerability scan results
 
-**Note**: Nikto scanning runs automatically on targets with ports 80 or 443 open. Results are saved as HTML reports in the nikto/ directory.
+**Note**: This tool focuses on web enumeration only. It uses httprobe to identify live web services and then enumerates web directories and vulnerabilities. No port scanning (beyond web ports 80/443) is performed.
 
 ---
 
@@ -179,11 +168,10 @@ Results are saved in `<ip>/recon/` with the following structure:
 - **assetfinder** - Subdomain enumeration (passive) - *Domains only*
 - **amass** - Advanced subdomain enumeration - *Domains only*
 - **sublist3r** - Subdomain enumeration (multiple sources) - *Domains only*
-- **httprobe** - Host probing (port 80, 443) - *Domains & IPs*
+- **httprobe** - Host probing (port 80, 443) - *All targets*
 - **subjack** - Subdomain takeover detection - *Domains only*
-- **nmap** - Port scanning with service/OS detection - *Domains & IPs*
-- **feroxbuster** - Directory brute-forcing with recursion - *Domains & IPs (only if ports 80/443 open)*
-- **nikto** - Web vulnerability scanning - *Domains & IPs (only if ports 80/443 open)*
+- **feroxbuster** - Web directory enumeration with recursion - *All targets*
+- **nikto** - Web vulnerability scanning - *All targets*
 - **Rust toolchain, Go, Python3, Git, jq**
 
 ### System Requirements:
@@ -212,7 +200,7 @@ Results are saved in `<ip>/recon/` with the following structure:
 | `command not found: httprobe` | Run `source ~/.bashrc` after installation |
 | `command not found: assetfinder` | PATH not updated; run `source ~/.bashrc` |
 | Script exits immediately | Missing required tools; re-run installer |
-| nmap permission denied | Make sure nmap is installed; may need `sudo` |
+| nmap permission denied | Make sure port scanning is only on authorized targets |
 | No subdomain results | Domain may have no public discovery; check domain name |
 
 **If tools still not found after `source ~/.bashrc`:**
@@ -240,10 +228,10 @@ export PATH=$PATH:$HOME/go/bin
 - **Fast Scanning** - Written in Rust for optimal performance
 
 The script automatically:
-- Detects web servers on IPs (via nmap port detection)
+- Uses httprobe to identify live web services
 - Initiates recursive directory brute-forcing with built-in wordlists
 - Follows redirects during scanning
-- Generates detailed HTML reports per target
+- Generates detailed reports per target
 - No manual wordlist configuration needed
 
 ---

@@ -36,11 +36,6 @@ if [ ! -x "$(command -v httprobe)" ]; then
     exit 1
 fi
 
-if [ ! -x "$(command -v nmap)" ]; then
-    echo "[-] nmap required to run script"
-    exit 1
-fi
-
 if [ ! -x "$(command -v nikto)" ]; then
     echo "[-] nikto required to run script"
     exit 1
@@ -87,13 +82,6 @@ if [ "$TARGET_TYPE" = "domain" ]; then
     fi
     if [ ! -d "$url/recon/potential_takeovers" ]; then
         mkdir "$url/recon/potential_takeovers"
-    fi
-fi
-
-# Create IP-specific directories
-if [ "$TARGET_TYPE" = "ip" ]; then
-    if [ ! -d "$url/recon/directories" ]; then
-        mkdir "$url/recon/directories"
     fi
 fi
 
@@ -179,67 +167,50 @@ else
     echo "[*] Skipping subdomain takeover check for IP address"
 fi
 
-echo "[+] Scanning for open ports..."
-nmap -iL "$url/recon/httprobe/alive.txt" -sV -O -sC -oA "$url/recon/scans/scanned" 2>/dev/null || true
-
-echo "[+] Parsing nmap results for web servers (ports 80/443)..."
-# Parse nmap output to find hosts with ports 80 or 443 open
-web_targets=""
-current_ip=""
-
-if [ -f "$url/recon/scans/scanned.nmap" ]; then
-    while IFS= read -r line; do
-        # Extract IP from "Nmap scan report for" lines
-        if [[ $line =~ ^Nmap\ scan\ report\ for\ ([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}) ]]; then
-            current_ip="${BASH_REMATCH[1]}"
-        fi
-        
-        # Check if this IP has port 80 or 443 open
-        if [[ $line =~ ^(80|443)/tcp.*open ]]; then
-            if [[ ! " $web_targets " =~ " $current_ip " ]]; then
-                web_targets="$web_targets $current_ip"
-            fi
-        fi
-    done < "$url/recon/scans/scanned.nmap"
-fi
+echo "[+] Probing alive targets for web enumeration..."
+# For both domain and IP targets, use the alive hosts list
+web_targets="$(cat "$url/recon/httprobe/alive.txt" 2>/dev/null | sort -u)"
 
 echo "[+] Scanning for directories..."
-if [ "$TARGET_TYPE" = "ip" ] && [ -n "$web_targets" ]; then
+if [ -n "$web_targets" ]; then
+    echo "[+] Web targets found, enumerating directories..."
+    if [ ! -d "$url/recon/directories" ]; then
+        mkdir "$url/recon/directories"
+    fi
+    
     for target in $web_targets; do
         echo "[*] Running feroxbuster on $target with 2-level recursion $(date +'%Y-%m-%d %T')"
         # Run feroxbuster with custom wordlist if provided
         if [ -n "${custom_wordlist:-}" ] && [ -f "$custom_wordlist" ]; then
-            feroxbuster -u http://"$target" -r --depth 2 -w "$custom_wordlist" -o "$url/recon/directories/${target}_full.txt" 2>/dev/null || true
+            feroxbuster -u "$target" -r --depth 2 -w "$custom_wordlist" -o "$url/recon/directories/fermox_full.txt" 2>/dev/null || true
         else
-            feroxbuster -u http://"$target" -r --depth 2 -o "$url/recon/directories/${target}_full.txt" 2>/dev/null || true
+            feroxbuster -u "$target" -r --depth 2 -o "$url/recon/directories/ferox_full.txt" 2>/dev/null || true
         fi
         
         # Filter for 200 status codes and redirects, exclude only binary files
-        if [ -f "$url/recon/directories/${target}_full.txt" ]; then
-            echo "=== Directory Brute Force Results for $target ===" > "$url/recon/directories/${target}_scan.txt"
-            echo "" >> "$url/recon/directories/${target}_scan.txt"
-            grep -E '(200|301|302|307|308).*GET' "$url/recon/directories/${target}_full.txt" | grep -vE '\.(gif|png|jpg|jpeg|svg|ico|webp|woff|woff2|ttf|otf|eot|zip|gz|tgz)' >> "$url/recon/directories/${target}_scan.txt" 2>/dev/null || true
-            rm -f "$url/recon/directories/${target}_full.txt"
+        ferox_file="$url/recon/directories/ferox_full.txt"
+        if [ -f "$ferox_file" ]; then
+            echo "=== Directory Enumeration Results for $target ===" > "$url/recon/directories/enum_results.txt"
+            echo "" >> "$url/recon/directories/enum_results.txt"
+            grep -E '(200|301|302|307|308).*GET' "$ferox_file" | grep -vE '\.(gif|png|jpg|jpeg|svg|ico|webp|woff|woff2|ttf|otf|eot|zip|gz|tgz)' >> "$url/recon/directories/enum_results.txt" 2>/dev/null || true
+            rm -f "$ferox_file"
         fi
         
         sleep 1
     done
-elif [ "$TARGET_TYPE" = "ip" ]; then
-    echo "[*] No web servers (ports 80/443) found, skipping directory enumeration"
 else
-    echo "[*] Skipping directory enumeration for domain target"
+    echo "[*] No web targets found, skipping directory enumeration"
 fi
 
 echo "[+] Scanning for web vulnerabilities with nikto..."
 if [ -z "$web_targets" ]; then
-    echo "[*] No targets with ports 80/443 open found"
+    echo "[*] No web targets found for nikto scanning"
 else
     for target in $web_targets; do
         echo "[*] Running nikto on $target..."
-        # Run nikto with correct syntax: nikto -h <target>
-        # Sanitize target name for filename (replace dots with underscores)
-        safe_target=$(echo "$target" | sed 's/\./_/g')
-        nikto -h "$target" -Format HTML -output "$url/recon/nikto/${safe_target}.html" || true
+        # Extract hostname/IP from URL for filename
+        target_host=$(echo "$target" | sed 's|^https\?://||' | sed 's|/.*||' | sed 's/\./_/g')
+        nikto -h "$target" -Format HTML -output "$url/recon/nikto/${target_host}.html" 2>/dev/null || true
     done
 fi
 

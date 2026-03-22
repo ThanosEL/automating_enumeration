@@ -13,7 +13,6 @@ sudo apt-get install -y \
   python3-pip \
   golang-go \
   git \
-  nmap \
   nikto \
   curl \
   wget \
@@ -84,7 +83,7 @@ export PATH=$PATH:$HOME/go/bin
 echo ""
 
 missing_tools=0
-declare -a tools=("assetfinder" "amass" "sublist3r" "httprobe" "nmap" "feroxbuster" "nikto")
+declare -a tools=("assetfinder" "amass" "sublist3r" "httprobe" "feroxbuster" "nikto")
 
 for tool in "${tools[@]}"; do
   if command -v "$tool" >/dev/null 2>&1; then
