@@ -182,7 +182,7 @@ if [ -n "$web_targets" ]; then
         echo "[*] Running feroxbuster on $target with 2-level recursion $(date +'%Y-%m-%d %T')"
         # Run feroxbuster with custom wordlist if provided
         if [ -n "${custom_wordlist:-}" ] && [ -f "$custom_wordlist" ]; then
-            feroxbuster -u "$target" -r --depth 2 -w "$custom_wordlist" -o "$url/recon/directories/fermox_full.txt" 2>/dev/null || true
+            feroxbuster -u "$target" -r --depth 2 -w "$custom_wordlist" -o "$url/recon/directories/ferox_full.txt" 2>/dev/null || true
         else
             feroxbuster -u "$target" -r --depth 2 -o "$url/recon/directories/ferox_full.txt" 2>/dev/null || true
         fi
