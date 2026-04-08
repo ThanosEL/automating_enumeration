@@ -100,7 +100,7 @@ if [[ "$TARGET_TYPE" == "domain" ]]; then
 
     echo "[+] Probing for alive web services..."
     # httprobe outputs full URLs (http:// or https://) — keep them as-is
-    httprobe -prefer-https < "$RECON/final.txt" \
+    httprobe < "$RECON/final.txt" \
         | sort -u > "$RECON/httprobe/alive.txt"
 
     echo "[+] Checking for subdomain takeovers..."
@@ -113,8 +113,8 @@ if [[ "$TARGET_TYPE" == "domain" ]]; then
 
 else
     echo "[+] Probing IP for live web services..."
-    # httprobe probes http:80 and https:443 by default; -prefer-https picks https if both answer
-    echo "$TARGET" | httprobe -prefer-https -p https:8443 -p http:8080 \
+    # httprobe probes http:80 and https:443 by default; also probe common alt ports
+    echo "$TARGET" | httprobe -p https:8443 -p http:8080 \
         | sort -u > "$RECON/httprobe/alive.txt"
     echo "$TARGET" > "$RECON/final.txt"
 fi

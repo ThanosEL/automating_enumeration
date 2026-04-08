@@ -23,18 +23,16 @@ sudo apt-get install -y \
 echo "[+] Installing Go-based tools..."
 export PATH=$PATH:$HOME/go/bin
 
-# Detect the user's shell rc file (Kali defaults to zsh)
-if [[ "${SHELL:-}" == */zsh ]] || [[ -n "${ZSH_VERSION:-}" ]]; then
-  RC_FILE="$HOME/.zshrc"
-else
-  RC_FILE="$HOME/.bashrc"
-fi
-echo "[*] Shell config file: $RC_FILE"
+# Add Go bin to PATH in both .zshrc and .bashrc
+add_to_path() {
+  local RC_FILE="$1"
+  local ENTRY="$2"
+  [[ -f "$RC_FILE" ]] || return
+  grep -qF "$ENTRY" "$RC_FILE" 2>/dev/null || echo "export PATH=\$PATH:$ENTRY" >> "$RC_FILE"
+}
 
-# Add Go bin to PATH
-if ! grep -qF 'go/bin' "$RC_FILE" 2>/dev/null; then
-  echo 'export PATH=$PATH:$HOME/go/bin' >> "$RC_FILE"
-fi
+add_to_path "$HOME/.zshrc"  '$HOME/go/bin'
+add_to_path "$HOME/.bashrc" '$HOME/go/bin'
 
 echo "[*] Installing assetfinder..."
 go install github.com/tomnomnom/assetfinder@latest
@@ -51,10 +49,8 @@ if ! command -v rustc >/dev/null 2>&1; then
   source $HOME/.cargo/env
 fi
 
-# Add Cargo bin to PATH
-if ! grep -qF '.cargo/bin' "$RC_FILE" 2>/dev/null; then
-  echo 'export PATH=$PATH:$HOME/.cargo/bin' >> "$RC_FILE"
-fi
+add_to_path "$HOME/.zshrc"  '$HOME/.cargo/bin'
+add_to_path "$HOME/.bashrc" '$HOME/.cargo/bin'
 
 export PATH=$PATH:$HOME/.cargo/bin
 
