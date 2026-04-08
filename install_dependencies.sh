@@ -71,6 +71,12 @@ fi
 echo "[*] Installing amass..."
 go install -v github.com/owasp-amass/amass/v3/...@master
 
+echo "[*] Installing waybackurls (optional)..."
+go install github.com/tomnomnom/waybackurls@latest || true
+
+echo "[*] Installing whatweb (optional)..."
+apt-get install -y whatweb 2>/dev/null || true
+
 echo "[+] Setting up subjack fingerprints..."
 mkdir -p $HOME/go/src/github.com/haccer/subjack
 if [ ! -f "$HOME/go/src/github.com/haccer/subjack/fingerprints.json" ]; then
@@ -83,7 +89,8 @@ export PATH=$PATH:$HOME/go/bin
 echo ""
 
 missing_tools=0
-declare -a tools=("assetfinder" "amass" "sublist3r" "httprobe" "feroxbuster" "nikto")
+declare -a tools=("assetfinder" "amass" "sublist3r" "httprobe" "feroxbuster" "nikto" "subjack")
+declare -a optional_tools=("waybackurls" "whatweb")
 
 for tool in "${tools[@]}"; do
   if command -v "$tool" >/dev/null 2>&1; then
@@ -91,6 +98,15 @@ for tool in "${tools[@]}"; do
   else
     echo "✗ $tool NOT found"
     ((missing_tools++))
+  fi
+done
+
+echo "[+] Optional tools:"
+for tool in "${optional_tools[@]}"; do
+  if command -v "$tool" >/dev/null 2>&1; then
+    echo "✓ $tool installed (optional)"
+  else
+    echo "- $tool not found (optional — enhances web enumeration)"
   fi
 done
 
